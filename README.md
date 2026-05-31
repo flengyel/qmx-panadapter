@@ -445,4 +445,8 @@ Ideas that fit the project but aren't on the immediate path. Order is rough; app
 
 ## License
 
-MIT (see LICENSE). Copyright (c) 2026 Steffen Lav (OZ1LAV).
+MIT (see LICENSE).
+
+Portions Copyright (c) 2026 Zhenxing Han (N6HAN).  
+QMX/QMX+ Panadapter adaptation and modifications Copyright (c) 2026 Steffen Lav (OZ1LAV).  
+Fork maintenance and Codex-assisted modifications Copyright (c) 2026 Florian Lengyel (WM2D), where applicable.
