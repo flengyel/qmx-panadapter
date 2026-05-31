@@ -1,6 +1,6 @@
 # QMX+ Panadapter
 
-*By Steffen Lav (OZ1LAV).*
+*Based on original work by Zhenxing Han (N6HAN); QMX/QMX+ Panadapter adaptation and current project by Steffen Lav (OZ1LAV); fork maintenance and Codex-assisted adaptation by Florian Lengyel (WM2D).*
 
 A standalone real-time panadapter — spectrum analyzer and waterfall — for the [QRP Labs QMX/QMX+](https://www.qrp-labs.com/qmxp.html) HF transceiver, running on the [M5Stack Tab5](https://docs.m5stack.com/en/core/tab5) (ESP32-P4 with a 5" 720×1280 touch display).
 
@@ -70,7 +70,13 @@ See the [Roadmap](#roadmap) at the bottom for what's next.
 
 - **M5Stack Tab5** with ESP32-P4 v1.3 (ECO2) silicon, ST7123 5" 720×1280 MIPI-DSI touch panel, 32 MB hex PSRAM, ESP32-C6 co-processor for WiFi
 - **QRP Labs QMX or QMX+** transceiver (Kenwood-style CAT, UAC audio)
-- USB-C OTG cable Tab5 ↔ QMX
+- USB data cable from **QMX/QMX+ to the Tab5 USB-A host port**
+
+**Tab5 USB connector rule:**
+
+- **USB-A** is the host connector. Connect the QMX/QMX+ here for CAT (CDC-ACM) and I/Q audio (UAC).
+- **USB-C** is for flashing, serial monitor, and battery charging. Do not connect the QMX/QMX+ to the Tab5 USB-C port.
+- Normal development wiring is: PC ↔ Tab5 USB-C for flash/monitor, and QMX/QMX+ ↔ Tab5 USB-A for radio data.
 
 ## Software requirements
 
