@@ -8,23 +8,29 @@ ESP-IDF firmware for the M5Stack Tab5 (ESP32-P4) implementing a standalone real-
 
 The intended USB topology is:
 
-- Tab5 acts as the USB host.
+- PC connects to Tab5 USB-C for flashing, serial monitor, and charging.
+- QMX/QMX+ connects to Tab5 USB-A.
+- Tab5 USB-A acts as the USB host.
 - QMX/QMX+ is the attached composite USB device.
 - CAT control is USB CDC-ACM.
 - I/Q audio is USB Audio Class (UAC).
 - Display output is local LVGL spectrum/waterfall plus a browser view over Wi-Fi.
 
-Do not treat the Android/Windows behavior of a cable as proof that the Tab5 port/host/VBUS path is correct. Those systems are known-good hosts; this firmware still needs to prove host-mode enumeration on Tab5.
+Do not treat the Android/Windows behavior of a cable as proof that the Tab5 USB-A host/VBUS path is correct. Those systems are known-good hosts; this firmware still needs to prove host-mode enumeration on Tab5 USB-A.
 
-## Current blocker: QMX+ does not enumerate/connect on Tab5
+## Hardware baseline: QMX/QMX+ uses the Tab5 USB-A host port
 
-Prioritize USB physical/host enumeration before DSP, CAT parsing, waterfall, or UI polish.
+The immediate connection blocker was wiring/documentation, not a QMX+ or cable failure.
 
 Observed user facts:
 
 - The same QMX+ and data cables work with qFT8 on Android and WSJT-X on Windows.
-- The Tab5 firmware does not connect through either USB-C to USB-C or USB-C to USB-A cabling.
-- The code does not currently log enough information to distinguish: wrong Tab5 connector, missing VBUS, no host-mode enumeration, VID/PID mismatch, CDC interface mismatch, or UAC alternate-setting mismatch.
+- The Tab5 USB-C connector is for flashing, serial monitor, and battery charging.
+- The Tab5 USB-A connector is the host connector for QMX/QMX+ CAT (CDC-ACM) and I/Q audio (UAC).
+- With QMX/QMX+ connected to Tab5 USB-A and the PC connected to Tab5 USB-C, the panadapter boots and sees the radio path.
+- The code still does not log enough information to distinguish wrong port, missing VBUS, no host-mode enumeration, VID/PID mismatch, CDC interface mismatch, or UAC alternate-setting mismatch.
+
+Prioritize boot-time USB-A/VBUS diagnostics before DSP, CAT parsing, waterfall, or UI polish if connectivity regresses.
 
 ### What the code currently does
 
@@ -108,6 +114,14 @@ idf.py build
 idf.py -p COMx flash monitor
 ```
 
+For routine app-only updates after the first flash, use:
+
+```powershell
+idf.py -p COMx app-flash monitor
+```
+
+Do not use `idf.py erase-flash` or `esptool.py erase_flash` unless intentionally performing a factory reset. Erasing flash wipes NVS, including Wi-Fi credentials and saved UI/radio settings.
+
 Exit monitor with `Ctrl+T`, then `Ctrl+X`.
 
 The repository contains machine-specific VS Code settings. Treat `.vscode/settings.json` as a local starting point only. In particular, do not assume:
@@ -188,13 +202,16 @@ Prior notes indicate that `AI1;` can partially enable auto-info mode despite ret
 
 ## Wi-Fi persistence and upgrade policy
 
-Wi-Fi credentials are already stored in NVS under the `qmx` namespace. They should survive ordinary `idf.py app-flash` and normal firmware upgrades as long as the NVS partition is not erased.
+Wi-Fi credentials are stored in NVS under the `qmx` namespace. They should survive `idf.py app-flash` and normal firmware upgrades as long as the NVS partition is not erased or moved.
+
+User-facing rule: routine development upgrades should use `idf.py -p COMx app-flash monitor`. `erase-flash` is a factory-reset action and must be documented as destructive.
 
 Current risks to fix:
 
 1. `main/main.c` erases the default NVS partition when `nvs_flash_init()` reports `ESP_ERR_NVS_NO_FREE_PAGES` or `ESP_ERR_NVS_NEW_VERSION_FOUND`. That loses Wi-Fi, display settings, and last VFO.
 2. `panadapter_wifi_reconnect()` schedules Wi-Fi credential writes through the debounced settings task, but does not force a synchronous flush before reconnecting or before the user might power-cycle.
 3. The partition table has a small default NVS partition. It mixes UI settings, Wi-Fi credentials, and last VFO in one place.
+4. Documentation must not tell users to use `erase-flash` during routine upgrades.
 
 Recommended policy:
 
@@ -249,8 +266,8 @@ Do not expose CAT control or spectrum WebSocket on the provisioning AP unless de
 
 ## Suggested immediate work order
 
-1. Add USB diagnostics and connector/VBUS logging.
-2. Verify which Tab5 physical connector can host the QMX+ on this BSP.
+1. Add USB-A/VBUS diagnostics and connector logging.
+2. Log at boot that QMX/QMX+ must be on Tab5 USB-A; PC flash/monitor remains on Tab5 USB-C.
 3. Replace hardcoded CDC interface `0` with descriptor-based discovery.
 4. Replace hardcoded UAC alt-setting `1` with descriptor-based selection.
 5. Make Wi-Fi credential commits synchronous and stop automatic NVS erase.
@@ -263,6 +280,7 @@ Do not expose CAT control or spectrum WebSocket on the provisioning AP unless de
 A healthy boot should eventually show the equivalent of:
 
 ```text
+usb_diag: QMX/QMX+ expected on Tab5 USB-A host port
 usb_diag: USB-C detect=<0/1> USB-A detect=<0/1> USB5V_EN=on
 M5STACK_TAB5: Installing USB Host
 usb_diag: NEW_DEV addr=<n>

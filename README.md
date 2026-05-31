@@ -88,9 +88,16 @@ See the [Roadmap](#roadmap) at the bottom for what's next.
 
 ## Build, flash, monitor
 
-Standard IDF flow:
+First build and flash flow:
 
-    idf.py build flash monitor
+    idf.py build
+    idf.py -p COMx flash monitor
+
+Replace `COMx` with the Tab5 port reported by Device Manager or `python -m serial.tools.list_ports`.
+
+For normal firmware updates after the first flash, prefer app-only flashing:
+
+    idf.py -p COMx app-flash monitor
 
 Or via the helper function in `$PROFILE` (see Tools section below):
 
@@ -99,6 +106,23 @@ Or via the helper function in `$PROFILE` (see Tools section below):
     qmx m       # monitor only
 
 Exit monitor with Ctrl+T then Ctrl+X.
+
+### Preserving WiFi and settings across upgrades
+
+WiFi credentials and user settings are stored in the Tab5 NVS partition, not embedded in the firmware image. Normal app-only updates should preserve:
+
+- WiFi SSID/password
+- display range and smoothing settings
+- I/Q balance and flat-spectrum toggles
+- last-known VFO frequency
+
+Use this for routine development upgrades:
+
+    idf.py -p COMx app-flash monitor
+
+Do **not** use `idf.py erase-flash` or `esptool.py erase_flash` unless you intentionally want a factory reset. Erasing flash deletes NVS, including saved WiFi credentials and settings.
+
+A full `idf.py -p COMx flash monitor` writes the bootloader, partition table, and app images. It should not be needed for every edit/test cycle; after the first successful flash, use `app-flash` unless bootloader, partition table, or low-level flash configuration has changed.
 
 ## Quick start: web UI
 
@@ -236,6 +260,8 @@ On **Save**, `panadapter_wifi_reconnect(ssid, pass)` is called. This:
 If no credentials are configured at boot, WiFi stays idle (no retry storm) until the user opens the modal and saves something. Saving an empty SSID is silently ignored — Cancel discards changes and leaves NVS untouched.
 
 **Why a runtime modal instead of build-time `wifi_credentials.h`.** Earlier versions kept SSID/password in a gitignored header. That made every WiFi change a rebuild-and-flash cycle, and required publishing build instructions to teach new users about the file. With the modal, a flashed binary is portable: the user enters their own network on first boot. Credentials are stored only in NVS, never embedded in the firmware image.
+
+**Upgrade note.** Use `idf.py -p COMx app-flash monitor` for normal firmware updates so the NVS partition is left alone. Do not use `idf.py erase-flash` as part of routine upgrades; it wipes the saved SSID/password, UI settings, and last VFO. If WiFi is lost after an upgrade, first check whether the device was fully erased or the NVS partition layout changed.
 
 ## Project layout
 
@@ -398,6 +424,7 @@ Exit monitor with `Ctrl+T` then `Ctrl+X` (works on Danish/non-US keyboard layout
 
 Concrete items planned for the near term, in roughly the order they'll likely be tackled.
 
+- **NVS / upgrade hardening.** Stop any automatic NVS erase path during normal boot; add an explicit factory-reset action instead. Make WiFi credential writes synchronous so saved credentials survive power loss immediately after Save.
 - **Memory channels.** Quick-recall frequency presets — touch a slot, QMX retunes via CAT. Stored in NVS.
 - **FT8 decoder onboard.** Integrate [`ft8_lib`](https://github.com/kgoba/ft8_lib) using the existing audio pipeline. The required UTC reference is now in place via SNTP. Show decoded callsigns/grids overlaid on the spectrum at their carrier frequencies.
 - **DSP polish.** Noise reduction, auto-notch — the feature surface the QuantumSDR Spectrum DSP M4 defines as the boutique-standalone target.
